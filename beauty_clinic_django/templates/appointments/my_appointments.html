@@ -1,0 +1,414 @@
+{% extends 'base.html' %}
+{% load static %}
+
+{% block title %}My Appointments - Skinovation Beauty Clinic{% endblock %}
+
+{% block extra_css %}
+<style>
+    :root {
+        --primary-color: #6f42c1;
+        --secondary-color: #8e44ad;
+        --gradient-primary: linear-gradient(135deg, #667eea 0%, #764ba2 100%);
+        --gradient-secondary: linear-gradient(135deg, #f093fb 0%, #f5576c 100%);
+    }
+
+    body {
+        background: linear-gradient(135deg, #f8f9ff 0%, #e8e3ff 100%);
+        background-attachment: fixed;
+        position: relative;
+    }
+
+    body::before {
+        content: '';
+        position: fixed;
+        top: 0;
+        left: 0;
+        width: 100%;
+        height: 100%;
+        background: 
+            radial-gradient(circle at 20% 80%, rgba(102, 126, 234, 0.1) 0%, transparent 50%),
+            radial-gradient(circle at 80% 20%, rgba(240, 147, 251, 0.1) 0%, transparent 50%),
+            radial-gradient(circle at 40% 40%, rgba(120, 219, 255, 0.05) 0%, transparent 50%);
+        z-index: -1;
+        pointer-events: none;
+    }
+
+    .appointments-container {
+        min-height: 100vh;
+        padding: 2rem 0;
+    }
+
+    .page-header {
+        background: var(--gradient-primary);
+        color: white;
+        padding: 3rem 0;
+        margin-bottom: 3rem;
+        position: relative;
+        overflow: hidden;
+    }
+
+    .page-header::before {
+        content: '';
+        position: absolute;
+        top: 0;
+        left: 0;
+        right: 0;
+        bottom: 0;
+        background: url('data:image/svg+xml,<svg xmlns="http://www.w3.org/2000/svg" viewBox="0 0 100 100"><circle cx="20" cy="20" r="2" fill="%23ffffff" opacity="0.1"><animate attributeName="cy" values="20;80;20" dur="8s" repeatCount="indefinite"/></circle><circle cx="80" cy="40" r="1.5" fill="%23ffffff" opacity="0.08"><animate attributeName="cy" values="40;10;40" dur="6s" repeatCount="indefinite"/></circle></svg>');
+        z-index: 1;
+    }
+
+    .page-header .container {
+        position: relative;
+        z-index: 2;
+    }
+
+    .appointments-card {
+        background: rgba(255, 255, 255, 0.95);
+        backdrop-filter: blur(15px);
+        border-radius: 20px;
+        box-shadow: 0 8px 32px rgba(0, 0, 0, 0.1);
+        border: 1px solid rgba(255, 255, 255, 0.2);
+        overflow: hidden;
+        position: relative;
+    }
+
+    .appointments-card::before {
+        content: '';
+        position: absolute;
+        top: 0;
+        left: 0;
+        right: 0;
+        height: 4px;
+        background: var(--gradient-primary);
+        background-size: 200% 100%;
+        animation: gradientShift 3s ease infinite;
+    }
+
+    .table {
+        margin-bottom: 0;
+        background: transparent;
+    }
+
+    .table thead th {
+        background: var(--gradient-primary);
+        color: white;
+        border: none;
+        padding: 1rem;
+        font-weight: 600;
+        text-shadow: 0 1px 2px rgba(0, 0, 0, 0.1);
+    }
+
+    .table tbody td {
+        padding: 1rem;
+        vertical-align: middle;
+        border-top: 1px solid rgba(233, 236, 239, 0.5);
+        background: rgba(255, 255, 255, 0.5);
+        transition: all 0.3s ease;
+    }
+
+    .table tbody tr:hover {
+        background: rgba(248, 249, 250, 0.8);
+        transform: scale(1.01);
+    }
+
+    .table tbody tr:hover td {
+        background: rgba(255, 255, 255, 0.8);
+    }
+
+    .badge {
+        padding: 0.4rem 1rem;
+        border-radius: 25px;
+        font-size: 0.8rem;
+        font-weight: bold;
+        box-shadow: 0 2px 8px rgba(0, 0, 0, 0.1);
+        transition: all 0.3s ease;
+    }
+
+    .badge:hover {
+        transform: scale(1.05);
+        box-shadow: 0 4px 15px rgba(0, 0, 0, 0.2);
+    }
+
+    .btn {
+        border-radius: 8px;
+        font-weight: 600;
+        transition: all 0.3s ease;
+        box-shadow: 0 2px 8px rgba(0, 0, 0, 0.1);
+    }
+
+    .btn:hover {
+        transform: translateY(-2px);
+        box-shadow: 0 4px 15px rgba(0, 0, 0, 0.2);
+    }
+
+    .btn-outline-danger {
+        border: 2px solid #dc3545;
+        color: #dc3545;
+        background: transparent;
+    }
+
+    .btn-outline-danger:hover {
+        background: #dc3545;
+        color: white;
+    }
+
+    .btn-outline-warning {
+        border: 2px solid #ffc107;
+        color: #ffc107;
+        background: transparent;
+    }
+
+    .btn-outline-warning:hover {
+        background: #ffc107;
+        color: black;
+    }
+
+    .btn-primary {
+        background: var(--gradient-primary);
+        border: none;
+        color: white;
+        box-shadow: 0 4px 15px rgba(102, 126, 234, 0.3);
+    }
+
+    .btn-primary:hover {
+        transform: translateY(-3px);
+        box-shadow: 0 8px 25px rgba(102, 126, 234, 0.4);
+        color: white;
+    }
+
+    .alert {
+        background: rgba(255, 255, 255, 0.9);
+        backdrop-filter: blur(15px);
+        border: 1px solid rgba(255, 255, 255, 0.2);
+        border-radius: 20px;
+        box-shadow: 0 8px 32px rgba(0, 0, 0, 0.1);
+    }
+
+    @keyframes gradientShift {
+        0% { background-position: 0% 50%; }
+        50% { background-position: 100% 50%; }
+        100% { background-position: 0% 50%; }
+    }
+</style>
+{% endblock %}
+
+{% block content %}
+<div class="appointments-container">
+    <!-- Page Header -->
+    <div class="page-header">
+        <div class="container text-center">
+            <h1 class="display-4 fw-bold mb-3">
+                <i class="fas fa-calendar-alt me-3"></i>My Appointments
+            </h1>
+            <p class="lead">Manage your beauty appointments and treatments</p>
+        </div>
+    </div>
+
+    <div class="container">
+        <div class="appointments-card">
+            <div class="card-body p-4">
+                {% if appointments %}
+                    <div class="table-responsive">
+                        <table class="table">
+                            <thead>
+                                <tr>
+                                    <th>Service/Product/Package</th>
+                                    <th>Date</th>
+                                    <th>Time</th>
+                                    <th>Attendant</th>
+                                    <th>Transaction ID</th>
+                                    <th>Status</th>
+                                    <th>Actions</th>
+                                </tr>
+                            </thead>
+                            <tbody>
+                                {% for appointment in appointments %}
+                                <tr>
+                                    <td>
+                                        {% if appointment.service %}
+                                            <i class="fas fa-spa me-2"></i> {{ appointment.service.service_name }}
+                                        {% elif appointment.product %}
+                                            <i class="fas fa-shopping-bag me-2"></i> {{ appointment.product.product_name }}
+                                        {% elif appointment.package %}
+                                            <i class="fas fa-gift me-2"></i> {{ appointment.package.package_name }}
+                                        {% endif %}
+                                    </td>
+                                    <td>{{ appointment.appointment_date|date:"M d, Y" }}</td>
+                                    <td>{{ appointment.appointment_time|time:"h:i A" }}</td>
+                                    <td>{{ appointment.attendant.first_name }} {{ appointment.attendant.last_name }}</td>
+                                    <td>
+                                        <span class="badge bg-info">{{ appointment.transaction_id|default:"N/A" }}</span>
+                                    </td>
+                                    <td>
+                                        <span class="badge bg-{% if appointment.status == 'confirmed' %}success{% elif appointment.status == 'cancelled' %}danger{% else %}warning{% endif %}">
+                                            {{ appointment.status|title }}
+                                        </span>
+                                    </td>
+                                    <td>
+                                        {% if appointment.status == 'pending' or appointment.status == 'confirmed' %}
+                                            <a href="{% url 'appointments:request_reschedule' appointment.id %}" class="btn btn-sm btn-outline-warning me-2">
+                                                <i class="fas fa-calendar-alt me-1"></i> Reschedule
+                                            </a>
+                                            <button type="button" class="btn btn-sm btn-outline-danger" data-bs-toggle="modal" data-bs-target="#cancelModal{{ appointment.id }}" onclick="checkCancellationRestriction({{ appointment.id }}, '{{ appointment.appointment_date|date:"Y-m-d" }}', '{{ appointment.appointment_time|time:"H:i" }}')">
+                                                <i class="fas fa-times-circle me-1"></i> Request Cancellation
+                                            </button>
+                                        {% elif appointment.status == 'completed' %}
+                                            {% if not appointment.feedback.exists %}
+                                                <button type="button" class="btn btn-sm btn-primary" data-bs-toggle="modal" data-bs-target="#feedbackModal{{ appointment.id }}">
+                                                    <i class="fas fa-star me-1"></i> Rate & Feedback
+                                                </button>
+                                            {% else %}
+                                                <span class="badge bg-success">Feedback Submitted</span>
+                                            {% endif %}
+                                        {% endif %}
+                                    </td>
+                                </tr>
+                                {% endfor %}
+                            </tbody>
+                        </table>
+                    </div>
+                {% else %}
+                    <div class="alert alert-info text-center">
+                        <i class="fas fa-calendar-times fa-3x mb-3" style="color: var(--primary-color);"></i>
+                        <h5 class="mb-3">No Appointments Yet</h5>
+                        <p class="mb-4">You don't have any appointments scheduled. Book your first beauty treatment today!</p>
+                        <a href="{% url 'services:list' %}" class="btn btn-primary">
+                            <i class="fas fa-calendar-plus me-2"></i>Book Your First Appointment
+                        </a>
+                    </div>
+                {% endif %}
+            </div>
+        </div>
+    </div>
+</div>
+
+<!-- Cancellation Restriction Modal -->
+{% for appointment in appointments %}
+<div class="modal fade" id="cancelModal{{ appointment.id }}" tabindex="-1" aria-labelledby="cancelModalLabel{{ appointment.id }}" aria-hidden="true">
+    <div class="modal-dialog modal-dialog-centered">
+        <div class="modal-content" style="border-radius: 15px; border: none; box-shadow: 0 10px 40px rgba(0,0,0,0.2);">
+            <div class="modal-header" style="background: linear-gradient(135deg, #dc3545 0%, #c82333 100%); color: white; border-radius: 15px 15px 0 0;">
+                <h5 class="modal-title" id="cancelModalLabel{{ appointment.id }}">
+                    <i class="fas fa-exclamation-triangle me-2"></i>Cancellation Policy
+                </h5>
+                <button type="button" class="btn-close btn-close-white" data-bs-dismiss="modal" aria-label="Close"></button>
+            </div>
+            <div class="modal-body p-4">
+                <div class="text-center mb-4">
+                    <i class="fas fa-calendar-times fa-3x text-danger mb-3"></i>
+                    <h5 class="fw-bold">Cancellation Not Allowed</h5>
+                </div>
+                <div class="alert alert-warning" role="alert">
+                    <i class="fas fa-info-circle me-2"></i>
+                    <strong>Policy Reminder:</strong> Cancellations must be made at least <strong>2 days</strong> before your appointment date.
+                </div>
+                <p class="mb-3">Your appointment is scheduled for:</p>
+                <div class="bg-light p-3 rounded mb-3">
+                    <strong>{{ appointment.appointment_date|date:"F d, Y" }}</strong> at <strong>{{ appointment.appointment_time|time:"h:i A" }}</strong>
+                </div>
+                <p class="text-muted mb-0">
+                    <i class="fas fa-phone me-2"></i>Please contact the clinic directly at <strong>0933 232 5122</strong> for assistance with your appointment.
+                </p>
+            </div>
+            <div class="modal-footer" style="border-top: 1px solid #dee2e6;">
+                <button type="button" class="btn btn-secondary" data-bs-dismiss="modal">Close</button>
+                <a href="tel:09332325122" class="btn btn-primary">
+                    <i class="fas fa-phone me-2"></i>Call Clinic
+                </a>
+            </div>
+        </div>
+    </div>
+</div>
+
+<!-- Feedback Modal -->
+<div class="modal fade" id="feedbackModal{{ appointment.id }}" tabindex="-1" aria-labelledby="feedbackModalLabel{{ appointment.id }}" aria-hidden="true">
+    <div class="modal-dialog modal-dialog-centered">
+        <div class="modal-content" style="border-radius: 15px; border: none; box-shadow: 0 10px 40px rgba(0,0,0,0.2);">
+            <div class="modal-header" style="background: linear-gradient(135deg, #6f42c1 0%, #8e44ad 100%); color: white; border-radius: 15px 15px 0 0;">
+                <h5 class="modal-title" id="feedbackModalLabel{{ appointment.id }}">
+                    <i class="fas fa-star me-2"></i>Rate Your Experience
+                </h5>
+                <button type="button" class="btn-close btn-close-white" data-bs-dismiss="modal" aria-label="Close"></button>
+            </div>
+            <form method="post" action="{% url 'appointments:submit_feedback' appointment.id %}">
+                {% csrf_token %}
+                <div class="modal-body p-4">
+                    <div class="text-center mb-4">
+                        <p class="mb-3">How would you rate your experience?</p>
+                        <div class="star-rating" data-appointment-id="{{ appointment.id }}">
+                            <input type="radio" name="rating" id="star5-{{ appointment.id }}" value="5" required>
+                            <label for="star5-{{ appointment.id }}" class="star-label"><i class="fas fa-star"></i></label>
+                            <input type="radio" name="rating" id="star4-{{ appointment.id }}" value="4" required>
+                            <label for="star4-{{ appointment.id }}" class="star-label"><i class="fas fa-star"></i></label>
+                            <input type="radio" name="rating" id="star3-{{ appointment.id }}" value="3" required>
+                            <label for="star3-{{ appointment.id }}" class="star-label"><i class="fas fa-star"></i></label>
+                            <input type="radio" name="rating" id="star2-{{ appointment.id }}" value="2" required>
+                            <label for="star2-{{ appointment.id }}" class="star-label"><i class="fas fa-star"></i></label>
+                            <input type="radio" name="rating" id="star1-{{ appointment.id }}" value="1" required>
+                            <label for="star1-{{ appointment.id }}" class="star-label"><i class="fas fa-star"></i></label>
+                        </div>
+                    </div>
+                    <div class="mb-3">
+                        <label for="comment-{{ appointment.id }}" class="form-label">Comments (Optional)</label>
+                        <textarea class="form-control" id="comment-{{ appointment.id }}" name="comment" rows="4" placeholder="Share your experience..."></textarea>
+                    </div>
+                </div>
+                <div class="modal-footer" style="border-top: 1px solid #dee2e6;">
+                    <button type="button" class="btn btn-secondary" data-bs-dismiss="modal">Cancel</button>
+                    <button type="submit" class="btn btn-primary">
+                        <i class="fas fa-paper-plane me-2"></i>Submit Feedback
+                    </button>
+                </div>
+            </form>
+        </div>
+    </div>
+</div>
+{% endfor %}
+
+<style>
+    .star-rating {
+        display: flex;
+        flex-direction: row-reverse;
+        justify-content: center;
+        gap: 5px;
+    }
+    
+    .star-rating input[type="radio"] {
+        display: none;
+    }
+    
+    .star-rating .star-label {
+        font-size: 2.5rem;
+        color: #ddd;
+        cursor: pointer;
+        transition: color 0.2s;
+    }
+    
+    .star-rating .star-label:hover,
+    .star-rating .star-label:hover ~ .star-label,
+    .star-rating input[type="radio"]:checked ~ .star-label {
+        color: #ffc107;
+    }
+    
+    .star-rating input[type="radio"]:checked ~ .star-label {
+        color: #ffc107;
+    }
+</style>
+
+<script>
+function checkCancellationRestriction(appointmentId, appointmentDate, appointmentTime) {
+    const appointmentDateTime = new Date(appointmentDate + 'T' + appointmentTime);
+    const now = new Date();
+    const daysUntil = Math.ceil((appointmentDateTime - now) / (1000 * 60 * 60 * 24));
+    
+    if (daysUntil < 2) {
+        // Show the modal (it will be shown automatically by Bootstrap)
+        return;
+    } else {
+        // Allow cancellation - redirect to cancellation page
+        window.location.href = "{% url 'appointments:request_cancellation' 0 %}".replace('0', appointmentId);
+    }
+}
+</script>
+{% endblock %}

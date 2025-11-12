@@ -1,0 +1,7 @@
+Django
+Pillow
+python-decouple
+mailtrap
+playwright
+pytest
+pytest-playwright

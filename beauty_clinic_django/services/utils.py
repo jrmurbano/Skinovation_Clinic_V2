@@ -1,0 +1,136 @@
+from django.conf import settings
+from .sms_service import sms_service
+import logging
+
+logger = logging.getLogger(__name__)
+
+def send_sms_notification(phone, message, sender_id=None, user=None):
+    """
+    Utility function to send SMS notifications
+    
+    Args:
+        phone (str): Recipient's phone number
+        message (str): SMS message content
+        sender_id (str): Optional sender ID override
+        user (User): User who sent the SMS (for history tracking)
+    
+    Returns:
+        dict: SMS sending result
+    """
+    if not getattr(settings, 'SMS_ENABLED', True):
+        logger.info("SMS notifications are disabled")
+        return {
+            'success': False,
+            'message': 'SMS notifications are disabled'
+        }
+    
+    try:
+        sender = sender_id or getattr(settings, 'SMS_SENDER_ID', 'BEAUTY')
+        result = sms_service.send_sms(phone, message, sender)
+        
+        # Save to SMS history if user is provided
+        if user:
+            from appointments.models import SMSHistory
+            SMSHistory.objects.create(
+                sender=user,
+                phone_number=phone,
+                message=message,
+                status='sent' if result['success'] else 'failed',
+                message_id=result.get('message_id'),
+                api_response=result
+            )
+        
+        if result['success']:
+            logger.info(f"SMS sent successfully to {phone}")
+        else:
+            logger.error(f"Failed to send SMS to {phone}: {result.get('error', 'Unknown error')}")
+        
+        return result
+        
+    except Exception as e:
+        logger.error(f"Error sending SMS to {phone}: {str(e)}")
+        
+        # Save failed attempt to history if user is provided
+        if user:
+            from appointments.models import SMSHistory
+            SMSHistory.objects.create(
+                sender=user,
+                phone_number=phone,
+                message=message,
+                status='failed',
+                api_response={'error': str(e)}
+            )
+        
+        return {
+            'success': False,
+            'error': str(e),
+            'message': 'Failed to send SMS notification'
+        }
+
+def send_appointment_sms(appointment, sms_type='confirmation'):
+    """
+    Send appointment-related SMS notifications
+    
+    Args:
+        appointment: Appointment object
+        sms_type (str): Type of SMS ('confirmation', 'reminder', 'cancellation')
+    
+    Returns:
+        dict: SMS sending result
+    """
+    if not appointment.patient.phone:
+        return {
+            'success': False,
+            'message': 'Patient phone number not available'
+        }
+    
+    try:
+        if sms_type == 'confirmation':
+            result = sms_service.send_appointment_confirmation(appointment)
+        elif sms_type == 'reminder':
+            result = sms_service.send_appointment_reminder(appointment)
+        elif sms_type == 'cancellation':
+            result = sms_service.send_cancellation_notification(appointment)
+        else:
+            return {
+                'success': False,
+                'message': f'Unknown SMS type: {sms_type}'
+            }
+        
+        return result
+        
+    except Exception as e:
+        logger.error(f"Error sending appointment SMS: {str(e)}")
+        return {
+            'success': False,
+            'error': str(e),
+            'message': 'Failed to send appointment SMS'
+        }
+
+def send_package_sms(package_booking):
+    """
+    Send package booking confirmation SMS
+    
+    Args:
+        package_booking: Package booking object
+    
+    Returns:
+        dict: SMS sending result
+    """
+    if not package_booking.patient.phone:
+        return {
+            'success': False,
+            'message': 'Patient phone number not available'
+        }
+    
+    try:
+        result = sms_service.send_package_confirmation(package_booking)
+        return result
+        
+    except Exception as e:
+        logger.error(f"Error sending package SMS: {str(e)}")
+        return {
+            'success': False,
+            'error': str(e),
+            'message': 'Failed to send package SMS'
+        }
