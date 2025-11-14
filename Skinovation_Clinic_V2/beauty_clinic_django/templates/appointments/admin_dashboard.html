@@ -6,11 +6,14 @@
 {% block content %}
 <!-- Page Header -->
 <div class="content-header">
-    <h1 class="page-title">
-        <i class="fas fa-tachometer-alt"></i>
-        Staff Dashboard
-    </h1>
-    <p class="text-muted mb-0">Manage appointments, pre-orders, and patient profiles</p>
+    <div>
+        <h1 class="page-title" style="margin: 0;">
+            <i class="fas fa-tachometer-alt"></i>
+            Staff Dashboard
+        </h1>
+        <p class="text-muted mb-0">Manage appointments, pre-orders, and patient profiles</p>
+    </div>
+    {% include 'appointments/includes/admin_notification_icon.html' %}
 </div>
 
 <!-- Statistics Cards -->

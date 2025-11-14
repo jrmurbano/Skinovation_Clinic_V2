@@ -3,14 +3,35 @@
 
 {% block title %}Inventory Management - Staff Panel{% endblock %}
 
+{% block extra_css %}
+<style>
+    .modal-backdrop {
+        z-index: 1050 !important;
+    }
+    .modal {
+        z-index: 1055 !important;
+    }
+    .modal-dialog {
+        z-index: 1056 !important;
+    }
+    .modal-content {
+        z-index: 1057 !important;
+        position: relative;
+    }
+</style>
+{% endblock %}
+
 {% block content %}
 <!-- Page Header -->
 <div class="content-header">
-    <h1 class="page-title">
-        <i class="fas fa-boxes"></i>
-        Inventory Management
-    </h1>
-    <p class="text-muted mb-0">Monitor and manage product stock levels</p>
+    <div>
+        <h1 class="page-title" style="margin: 0;">
+            <i class="fas fa-boxes"></i>
+            Inventory Management
+        </h1>
+        <p class="text-muted mb-0">Monitor and manage product stock levels</p>
+    </div>
+    {% include 'appointments/includes/admin_notification_icon.html' %}
 </div>
 
 <!-- Statistics Cards -->
@@ -122,9 +143,9 @@
                 </tr>
                 
                 <!-- Update Stock Modal -->
-                <div class="modal fade" id="updateStockModal{{ product.id }}" tabindex="-1" aria-labelledby="updateStockModalLabel{{ product.id }}" aria-hidden="true">
-                    <div class="modal-dialog modal-dialog-centered">
-                        <div class="modal-content" style="border-radius: 15px; border: none; box-shadow: 0 10px 40px rgba(0,0,0,0.2);">
+                <div class="modal fade" id="updateStockModal{{ product.id }}" tabindex="-1" aria-labelledby="updateStockModalLabel{{ product.id }}" aria-hidden="true" style="z-index: 1055;">
+                    <div class="modal-dialog modal-dialog-centered" style="z-index: 1056;">
+                        <div class="modal-content" style="border-radius: 15px; border: none; box-shadow: 0 10px 40px rgba(0,0,0,0.2); z-index: 1057; position: relative;">
                             <div class="modal-header" style="background: linear-gradient(135deg, #6f42c1 0%, #8e44ad 100%); color: white; border-radius: 15px 15px 0 0;">
                                 <h5 class="modal-title" id="updateStockModalLabel{{ product.id }}">
                                     <i class="fas fa-boxes me-2"></i>Update Stock - {{ product.product_name }}

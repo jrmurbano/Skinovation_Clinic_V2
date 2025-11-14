@@ -1,0 +1,140 @@
+{% extends 'appointments/admin_base.html' %}
+{% load static %}
+
+{% block title %}History Log - Staff Panel{% endblock %}
+
+{% block content %}
+<!-- Page Header -->
+<div class="content-header">
+    <h1 class="page-title">
+        <i class="fas fa-history"></i>
+        History Log
+    </h1>
+    {% include 'appointments/includes/admin_notification_icon.html' %}
+</div>
+
+<!-- Filters -->
+<div class="content-card mb-4">
+    <h3 class="card-title">
+        <i class="fas fa-filter"></i>
+        Filters
+    </h3>
+    <form method="get" class="row g-3">
+        <div class="col-md-4">
+            <label for="item_type" class="form-label">Item Type</label>
+            <select name="item_type" id="item_type" class="form-select">
+                <option value="">All Types</option>
+                <option value="service" {% if item_type_filter == 'service' %}selected{% endif %}>Service</option>
+                <option value="product" {% if item_type_filter == 'product' %}selected{% endif %}>Product</option>
+                <option value="package" {% if item_type_filter == 'package' %}selected{% endif %}>Package</option>
+            </select>
+        </div>
+        <div class="col-md-4">
+            <label for="action_type" class="form-label">Action Type</label>
+            <select name="action_type" id="action_type" class="form-select">
+                <option value="">All Actions</option>
+                <option value="add" {% if action_type_filter == 'add' %}selected{% endif %}>Add</option>
+                <option value="edit" {% if action_type_filter == 'edit' %}selected{% endif %}>Edit</option>
+                <option value="archive" {% if action_type_filter == 'archive' %}selected{% endif %}>Archive</option>
+            </select>
+        </div>
+        <div class="col-md-4">
+            <label class="form-label">&nbsp;</label>
+            <div class="d-grid">
+                <button type="submit" class="btn btn-primary">
+                    <i class="fas fa-search me-1"></i>Filter
+                </button>
+            </div>
+        </div>
+    </form>
+</div>
+
+<!-- History Log Table -->
+<div class="content-card">
+    <h3 class="card-title">
+        <i class="fas fa-list-alt"></i>
+        History Log
+    </h3>
+    
+    {% if history_logs %}
+        <div class="table-responsive">
+            <table class="table">
+                <thead>
+                    <tr>
+                        <th>Timestamp</th>
+                        <th>Action</th>
+                        <th>Item Type</th>
+                        <th>Item Name</th>
+                        <th>Performed By</th>
+                        <th>Details</th>
+                    </tr>
+                </thead>
+                <tbody>
+                    {% for log in history_logs %}
+                    <tr>
+                        <td>{{ log.timestamp|date:"M d, Y g:i A" }}</td>
+                        <td>
+                            <span class="badge bg-{% if log.action_type == 'add' %}success{% elif log.action_type == 'edit' %}primary{% else %}warning{% endif %}">
+                                {{ log.get_action_type_display }}
+                            </span>
+                        </td>
+                        <td>
+                            <span class="badge bg-info">
+                                {{ log.get_item_type_display }}
+                            </span>
+                        </td>
+                        <td><strong>{{ log.item_name }}</strong></td>
+                        <td>{{ log.performed_by.get_full_name|default:log.performed_by.username|default:"System" }}</td>
+                        <td>
+                            {% if log.details %}
+                                <small class="text-muted">{{ log.details|truncatewords:10 }}</small>
+                            {% else %}
+                                <span class="text-muted">—</span>
+                            {% endif %}
+                        </td>
+                    </tr>
+                    {% endfor %}
+                </tbody>
+            </table>
+        </div>
+        
+        <!-- Pagination -->
+        {% if page_obj.has_other_pages %}
+        <nav aria-label="History log pagination">
+            <ul class="pagination justify-content-center">
+                {% if page_obj.has_previous %}
+                <li class="page-item">
+                    <a class="page-link" href="?page={{ page_obj.previous_page_number }}{% if item_type_filter %}&item_type={{ item_type_filter }}{% endif %}{% if action_type_filter %}&action_type={{ action_type_filter }}{% endif %}">Previous</a>
+                </li>
+                {% endif %}
+                
+                {% for num in page_obj.paginator.page_range %}
+                    {% if page_obj.number == num %}
+                    <li class="page-item active">
+                        <span class="page-link">{{ num }}</span>
+                    </li>
+                    {% elif num > page_obj.number|add:'-3' and num < page_obj.number|add:'3' %}
+                    <li class="page-item">
+                        <a class="page-link" href="?page={{ num }}{% if item_type_filter %}&item_type={{ item_type_filter }}{% endif %}{% if action_type_filter %}&action_type={{ action_type_filter }}{% endif %}">{{ num }}</a>
+                    </li>
+                    {% endif %}
+                {% endfor %}
+                
+                {% if page_obj.has_next %}
+                <li class="page-item">
+                    <a class="page-link" href="?page={{ page_obj.next_page_number }}{% if item_type_filter %}&item_type={{ item_type_filter }}{% endif %}{% if action_type_filter %}&action_type={{ action_type_filter }}{% endif %}">Next</a>
+                </li>
+                {% endif %}
+            </ul>
+        </nav>
+        {% endif %}
+    {% else %}
+        <div class="text-center py-5">
+            <i class="fas fa-history fa-3x text-muted mb-3"></i>
+            <h5 class="text-muted">No history log entries found</h5>
+            <p class="text-muted">History of add/edit/archive actions will appear here.</p>
+        </div>
+    {% endif %}
+</div>
+{% endblock %}
+

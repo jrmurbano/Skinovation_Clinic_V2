@@ -90,6 +90,16 @@ class AttendantProfile(models.Model):
     work_days = models.JSONField(default=list, help_text="List of work days (e.g., ['Monday', 'Tuesday', ...])")
     start_time = models.TimeField(default='10:00', help_text="Work start time (e.g., 10:00 AM)")
     end_time = models.TimeField(default='18:00', help_text="Work end time (e.g., 6:00 PM)")
+    phone = models.CharField(
+        max_length=11,
+        validators=[RegexValidator(
+            regex=r'^09\d{9}$',
+            message="Phone number must be 11 digits starting with 09 (e.g., 09123456789)."
+        )],
+        blank=True,
+        null=True,
+        help_text="11-digit phone number starting with 09"
+    )
     created_at = models.DateTimeField(auto_now_add=True)
     updated_at = models.DateTimeField(auto_now=True)
     

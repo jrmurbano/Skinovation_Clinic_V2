@@ -410,6 +410,19 @@ def admin_notifications(request):
     
     return render(request, 'appointments/admin_notifications.html', context)
 
+def get_attendant_display_name(user):
+    """Get formatted display name for attendant: 'Attendant X - First Last'"""
+    # Extract number from username (e.g., 'attendant1' -> 1)
+    import re
+    match = re.search(r'attendant(\d+)', user.username.lower())
+    if match:
+        number = match.group(1)
+        name = user.get_full_name() or user.username
+        return f"Attendant {number} - {name}"
+    # Fallback if username doesn't match pattern
+    return user.get_full_name() or user.username
+
+
 @login_required
 @user_passes_test(is_admin)
 def admin_settings(request):
@@ -418,16 +431,27 @@ def admin_settings(request):
     
     attendants = Attendant.objects.all()
     closed_days = ClosedDay.objects.all()
-    attendant_users = User.objects.filter(user_type='attendant').order_by('-is_active', 'first_name', 'last_name')
+    attendant_users = User.objects.filter(user_type='attendant').order_by('username')
     
     # Get attendant profiles - create list of tuples for easier template access
     attendant_users_with_profiles = []
+    attendant_display_names = {}
     for user in attendant_users:
         try:
             profile = user.attendant_profile
             attendant_users_with_profiles.append((user, profile))
         except AttendantProfile.DoesNotExist:
             attendant_users_with_profiles.append((user, None))
+        except Exception as e:
+            # Handle any database errors gracefully
+            from django.db import OperationalError
+            if isinstance(e, OperationalError):
+                # If there's a database error, try to continue without profile
+                attendant_users_with_profiles.append((user, None))
+            else:
+                attendant_users_with_profiles.append((user, None))
+        # Store display name for template
+        attendant_display_names[user.id] = get_attendant_display_name(user)
     
     # Create a list of hours for the schedule
     hours = ['10', '11', '12', '13', '14', '15', '16', '17', '18']
@@ -438,6 +462,7 @@ def admin_settings(request):
         'hours': hours,
         'attendant_users': attendant_users,
         'attendant_users_with_profiles': attendant_users_with_profiles,
+        'attendant_display_names': attendant_display_names,
     }
     
     return render(request, 'appointments/admin_settings.html', context)
@@ -570,13 +595,14 @@ def admin_edit_attendant_user(request, user_id):
 @login_required
 @user_passes_test(is_admin)
 def admin_manage_attendant_profile(request, user_id):
-    """Manage attendant profile (work days and hours)"""
+    """Manage attendant profile (work days, hours, phone, and profile picture)"""
     user = get_object_or_404(User, id=user_id, user_type='attendant')
     
     if request.method == 'POST':
         work_days = request.POST.getlist('work_days')
         start_time = request.POST.get('start_time')
         end_time = request.POST.get('end_time')
+        phone = request.POST.get('phone', '').strip()
         
         if not work_days:
             messages.error(request, 'Please select at least one work day.')
@@ -586,11 +612,47 @@ def admin_manage_attendant_profile(request, user_id):
             messages.error(request, 'Please provide both start and end times.')
             return redirect('appointments:admin_settings')
         
+        # Validate store hours restriction (10 AM - 6 PM)
+        from datetime import datetime
+        start_time_obj = datetime.strptime(start_time, '%H:%M').time()
+        end_time_obj = datetime.strptime(end_time, '%H:%M').time()
+        min_time = datetime.strptime('10:00', '%H:%M').time()
+        max_time = datetime.strptime('18:00', '%H:%M').time()
+        
+        if start_time_obj < min_time or end_time_obj > max_time:
+            messages.error(request, 'Shift hours must be between 10:00 AM and 6:00 PM.')
+            return redirect('appointments:admin_settings')
+        
+        if start_time_obj >= end_time_obj:
+            messages.error(request, 'Start time must be before end time.')
+            return redirect('appointments:admin_settings')
+        
+        # Validate phone number if provided
+        if phone:
+            import re
+            if not re.match(r'^09\d{9}$', phone):
+                messages.error(request, 'Phone number must be 11 digits starting with 09 (e.g., 09123456789).')
+                return redirect('appointments:admin_settings')
+        
+        # Handle profile picture upload
+        if 'profile_picture' in request.FILES:
+            profile_picture = request.FILES['profile_picture']
+            # Validate file type
+            if profile_picture.content_type not in ['image/jpeg', 'image/jpg', 'image/png']:
+                messages.error(request, 'Profile picture must be in JPG or PNG format.')
+                return redirect('appointments:admin_settings')
+            user.profile_picture = profile_picture
+            user.save()
+        
         # Get or create profile
         profile, created = AttendantProfile.objects.get_or_create(user=user)
         profile.work_days = work_days
         profile.start_time = start_time
         profile.end_time = end_time
+        if phone:
+            profile.phone = phone
+        elif phone == '':
+            profile.phone = None
         profile.save()
         
         if created:
@@ -713,16 +775,18 @@ def admin_delete_closed_day(request, closed_day_id):
 @login_required
 @user_passes_test(is_admin)
 def admin_cancellation_requests(request):
-    """Admin view for cancellation requests"""
-    from .models import CancellationRequest
+    """Admin view for cancellation and reschedule requests"""
+    from .models import CancellationRequest, RescheduleRequest
     
     cancellation_requests = CancellationRequest.objects.all().order_by('-created_at')
+    reschedule_requests = RescheduleRequest.objects.all().order_by('-created_at')
     
     context = {
         'cancellation_requests': cancellation_requests,
+        'reschedule_requests': reschedule_requests,
     }
     
-    return render(request, 'appointments/admin_cancellation_requests.html', context)
+    return render(request, 'appointments/admin_reschedules_cancellations.html', context)
 
 @login_required
 @user_passes_test(is_admin)
@@ -962,6 +1026,41 @@ def admin_inventory(request):
     
     return render(request, 'appointments/admin_inventory.html', context)
 
+
+@login_required
+@user_passes_test(is_admin)
+def admin_history_log(request):
+    """Admin view for history log of services/products/packages"""
+    from .models import HistoryLog
+    
+    # Get filter parameters
+    item_type_filter = request.GET.get('item_type', '')
+    action_type_filter = request.GET.get('action_type', '')
+    
+    # Start with all history logs
+    history_logs = HistoryLog.objects.all()
+    
+    # Apply filters
+    if item_type_filter:
+        history_logs = history_logs.filter(item_type=item_type_filter)
+    
+    if action_type_filter:
+        history_logs = history_logs.filter(action_type=action_type_filter)
+    
+    # Add pagination
+    from django.core.paginator import Paginator
+    paginator = Paginator(history_logs, 50)  # 50 items per page
+    page_number = request.GET.get('page')
+    page_obj = paginator.get_page(page_number)
+    
+    context = {
+        'history_logs': page_obj,
+        'page_obj': page_obj,
+        'item_type_filter': item_type_filter,
+        'action_type_filter': action_type_filter,
+    }
+    
+    return render(request, 'appointments/admin_history_log.html', context)
 
 @login_required
 @user_passes_test(is_admin)

@@ -1,5 +1,6 @@
 {% extends 'appointments/admin_base.html' %}
 {% load static %}
+{% load appointment_filters %}
 
 {% block title %}Settings - Staff Panel{% endblock %}
 
@@ -10,6 +11,25 @@
         <i class="fas fa-cog"></i>
         Settings
     </h1>
+    <div class="notification-wrapper">
+        <div class="dropdown">
+            <button class="btn btn-link text-decoration-none position-relative" type="button" id="adminNotificationDropdown" data-bs-toggle="dropdown" aria-expanded="false" style="border: none; padding: 0.5rem;">
+                <i class="fas fa-bell text-muted" style="font-size: 18px;"></i>
+                <span class="position-absolute top-0 start-100 translate-middle badge rounded-pill bg-danger" style="font-size: 10px;" id="adminNotificationCount">0</span>
+            </button>
+            <ul class="dropdown-menu dropdown-menu-end" aria-labelledby="adminNotificationDropdown" style="max-width: 350px; max-height: 400px; overflow-y: auto;">
+                <li><h6 class="dropdown-header">Notifications</h6></li>
+                <li><hr class="dropdown-divider"></li>
+                <li id="adminNotificationsList">
+                    <div class="text-center p-3 text-muted">
+                        <i class="fas fa-spinner fa-spin"></i> Loading...
+                    </div>
+                </li>
+                <li><hr class="dropdown-divider"></li>
+                <li><a class="dropdown-item text-center" href="{% url 'appointments:admin_notifications' %}">View All Notifications</a></li>
+            </ul>
+        </div>
+    </div>
 </div>
 
 <!-- Manage Attendant Accounts -->
@@ -48,6 +68,7 @@
             <thead>
                 <tr>
                     <th>#</th>
+                    <th>PROFILE</th>
                     <th>NAME</th>
                     <th>USERNAME</th>
                     <th>EMAIL</th>
@@ -59,7 +80,16 @@
                 {% for attendant_user in attendant_users %}
                 <tr>
                     <td>{{ forloop.counter }}</td>
-                    <td>{{ attendant_user.get_full_name|default:attendant_user.username }}</td>
+                    <td>
+                        {% if attendant_user.profile_picture %}
+                        <img src="{{ attendant_user.profile_picture.url }}" alt="Profile" style="width: 40px; height: 40px; border-radius: 50%; object-fit: cover;">
+                        {% else %}
+                        <div style="width: 40px; height: 40px; border-radius: 50%; background-color: #ddd; display: flex; align-items: center; justify-content: center;">
+                            <i class="fas fa-user text-muted"></i>
+                        </div>
+                        {% endif %}
+                    </td>
+                    <td>{{ attendant_user|attendant_display_name }}</td>
                     <td>{{ attendant_user.username }}</td>
                     <td>{{ attendant_user.email|default:"—" }}</td>
                     <td>
@@ -86,7 +116,7 @@
                 </tr>
                 {% empty %}
                 <tr>
-                    <td colspan="6" class="text-center text-muted py-3">
+                    <td colspan="7" class="text-center text-muted py-3">
                         No attendant accounts found
                     </td>
                 </tr>
@@ -285,9 +315,28 @@
                 </h5>
                 <button type="button" class="btn-close" data-bs-dismiss="modal" aria-label="Close"></button>
             </div>
-            <form method="post" action="{% url 'appointments:admin_manage_attendant_profile' attendant_user.id %}">
+            <form method="post" action="{% url 'appointments:admin_manage_attendant_profile' attendant_user.id %}" enctype="multipart/form-data">
                 {% csrf_token %}
                 <div class="modal-body">
+                    <div class="row mb-3">
+                        <div class="col-md-6">
+                            <label for="profile_picture{{ attendant_user.id }}" class="form-label fw-bold">Profile Picture:</label>
+                            <input type="file" class="form-control" id="profile_picture{{ attendant_user.id }}" name="profile_picture" accept="image/jpeg,image/jpg,image/png">
+                            <small class="form-text text-muted">JPG or PNG format only</small>
+                            {% if attendant_user.profile_picture %}
+                            <div class="mt-2">
+                                <img src="{{ attendant_user.profile_picture.url }}" alt="Profile Picture" style="max-width: 100px; max-height: 100px; border-radius: 50%;">
+                            </div>
+                            {% endif %}
+                        </div>
+                        <div class="col-md-6">
+                            <label for="phone{{ attendant_user.id }}" class="form-label fw-bold">Phone Number:</label>
+                            <input type="text" class="form-control" id="phone{{ attendant_user.id }}" name="phone" 
+                                value="{% if profile %}{% if profile.phone %}{{ profile.phone }}{% endif %}{% endif %}" 
+                                placeholder="09123456789" maxlength="11" pattern="09\d{9}">
+                            <small class="form-text text-muted">11 digits starting with 09 (e.g., 09123456789)</small>
+                        </div>
+                    </div>
                     <div class="mb-3">
                         <label class="form-label fw-bold">Work Days:</label>
                         <div class="row">
@@ -308,17 +357,21 @@
                         <div class="col-md-6 mb-3">
                             <label for="start_time{{ attendant_user.id }}" class="form-label fw-bold">Start Time:</label>
                             <input type="time" class="form-control" id="start_time{{ attendant_user.id }}" name="start_time" 
-                                value="{% if profile %}{{ profile.start_time|time:'H:i' }}{% else %}10:00{% endif %}" required>
+                                value="{% if profile %}{{ profile.start_time|time:'H:i' }}{% else %}10:00{% endif %}" 
+                                min="10:00" max="18:00" required>
+                            <small class="form-text text-muted">Must be between 10:00 AM and 6:00 PM</small>
                         </div>
                         <div class="col-md-6 mb-3">
                             <label for="end_time{{ attendant_user.id }}" class="form-label fw-bold">End Time:</label>
                             <input type="time" class="form-control" id="end_time{{ attendant_user.id }}" name="end_time" 
-                                value="{% if profile %}{{ profile.end_time|time:'H:i' }}{% else %}18:00{% endif %}" required>
+                                value="{% if profile %}{{ profile.end_time|time:'H:i' }}{% else %}18:00{% endif %}" 
+                                min="10:00" max="18:00" required>
+                            <small class="form-text text-muted">Must be between 10:00 AM and 6:00 PM</small>
                         </div>
                     </div>
                     <div class="alert alert-info">
                         <i class="fas fa-info-circle me-2"></i>
-                        <strong>Note:</strong> Setting work days and hours will enable automatic appointment confirmation when appointments match the attendant's schedule.
+                        <strong>Note:</strong> Setting work days and hours will enable automatic appointment confirmation when appointments match the attendant's schedule. Shift hours must be between 10:00 AM and 6:00 PM.
                     </div>
                 </div>
                 <div class="modal-footer">

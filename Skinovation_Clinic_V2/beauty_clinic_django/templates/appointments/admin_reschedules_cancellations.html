@@ -1,0 +1,187 @@
+{% extends 'appointments/admin_base.html' %}
+{% load static %}
+
+{% block title %}Reschedules and Cancellations - Staff Panel{% endblock %}
+
+{% block content %}
+<!-- Page Header -->
+<div class="content-header">
+    <h1 class="page-title">
+        <i class="fas fa-exchange-alt"></i>
+        Reschedules and Cancellations
+    </h1>
+    {% include 'appointments/includes/admin_notification_icon.html' %}
+</div>
+
+<div class="row">
+    <!-- Reschedule Requests Card -->
+    <div class="col-md-6 mb-4">
+        <div class="content-card h-100">
+            <h3 class="card-title">
+                <i class="fas fa-calendar-alt"></i>
+                Reschedule Requests
+            </h3>
+            
+            {% if reschedule_requests %}
+                <div class="table-responsive">
+                    <table class="table">
+                        <thead>
+                            <tr>
+                                <th>Patient</th>
+                                <th>Appointment ID</th>
+                                <th>New Date</th>
+                                <th>New Time</th>
+                                <th>Status</th>
+                                <th>Actions</th>
+                            </tr>
+                        </thead>
+                        <tbody>
+                            {% for request in reschedule_requests %}
+                            <tr>
+                                <td><strong>{{ request.patient.full_name }}</strong></td>
+                                <td>{{ request.appointment_id }}</td>
+                                <td>{{ request.new_appointment_date|date:"M d, Y" }}</td>
+                                <td>{{ request.new_appointment_time|time:"g:i A" }}</td>
+                                <td>
+                                    <span class="status-badge status-{{ request.status }}">
+                                        {{ request.status|title }}
+                                    </span>
+                                </td>
+                                <td>
+                                    <button type="button" class="btn btn-sm btn-primary" data-bs-toggle="modal" data-bs-target="#rescheduleModal{{ request.id }}">
+                                        <i class="fas fa-eye"></i> View
+                                    </button>
+                                </td>
+                            </tr>
+                            {% endfor %}
+                        </tbody>
+                    </table>
+                </div>
+            {% else %}
+                <div class="text-center py-5">
+                    <i class="fas fa-calendar-check fa-3x text-muted mb-3"></i>
+                    <h5 class="text-muted">No reschedule requests</h5>
+                </div>
+            {% endif %}
+        </div>
+    </div>
+
+    <!-- Cancellation Requests Card -->
+    <div class="col-md-6 mb-4">
+        <div class="content-card h-100">
+            <h3 class="card-title">
+                <i class="fas fa-times-circle"></i>
+                Cancellation Requests
+            </h3>
+            
+            {% if cancellation_requests %}
+                <div class="table-responsive">
+                    <table class="table">
+                        <thead>
+                            <tr>
+                                <th>Patient</th>
+                                <th>Appointment Type</th>
+                                <th>Appointment ID</th>
+                                <th>Status</th>
+                                <th>Actions</th>
+                            </tr>
+                        </thead>
+                        <tbody>
+                            {% for request in cancellation_requests %}
+                            <tr>
+                                <td><strong>{{ request.patient.full_name }}</strong></td>
+                                <td>
+                                    <span class="type-badge type-{{ request.appointment_type }}">
+                                        {{ request.appointment_type|title }}
+                                    </span>
+                                </td>
+                                <td>{{ request.appointment_id }}</td>
+                                <td>
+                                    <span class="status-badge status-{{ request.status }}">
+                                        {{ request.status|title }}
+                                    </span>
+                                </td>
+                                <td>
+                                    <button type="button" class="btn btn-sm btn-primary" data-bs-toggle="modal" data-bs-target="#cancellationModal{{ request.id }}">
+                                        <i class="fas fa-eye"></i> View
+                                    </button>
+                                </td>
+                            </tr>
+                            {% endfor %}
+                        </tbody>
+                    </table>
+                </div>
+            {% else %}
+                <div class="text-center py-5">
+                    <i class="fas fa-inbox fa-3x text-muted mb-3"></i>
+                    <h5 class="text-muted">No cancellation requests</h5>
+                </div>
+            {% endif %}
+        </div>
+    </div>
+</div>
+
+<!-- Reschedule Request Modals -->
+{% for request in reschedule_requests %}
+<div class="modal fade" id="rescheduleModal{{ request.id }}" tabindex="-1" aria-labelledby="rescheduleModalLabel{{ request.id }}" aria-hidden="true">
+    <div class="modal-dialog">
+        <div class="modal-content">
+            <div class="modal-header">
+                <h5 class="modal-title" id="rescheduleModalLabel{{ request.id }}">Reschedule Request Details</h5>
+                <button type="button" class="btn-close" data-bs-dismiss="modal" aria-label="Close"></button>
+            </div>
+            <div class="modal-body">
+                <p><strong>Patient:</strong> {{ request.patient.full_name }}</p>
+                <p><strong>Appointment ID:</strong> {{ request.appointment_id }}</p>
+                <p><strong>New Date:</strong> {{ request.new_appointment_date|date:"F d, Y" }}</p>
+                <p><strong>New Time:</strong> {{ request.new_appointment_time|time:"g:i A" }}</p>
+                <p><strong>Status:</strong> <span class="status-badge status-{{ request.status }}">{{ request.status|title }}</span></p>
+                {% if request.reason %}
+                <hr>
+                <p><strong>Reason:</strong></p>
+                <p>{{ request.reason }}</p>
+                {% endif %}
+                <p class="text-muted small mb-0">Requested on {{ request.created_at|date:"F d, Y g:i A" }}</p>
+            </div>
+            <div class="modal-footer">
+                <button type="button" class="btn btn-secondary" data-bs-dismiss="modal">Close</button>
+            </div>
+        </div>
+    </div>
+</div>
+{% endfor %}
+
+<!-- Cancellation Request Modals -->
+{% for request in cancellation_requests %}
+<div class="modal fade" id="cancellationModal{{ request.id }}" tabindex="-1" aria-labelledby="cancellationModalLabel{{ request.id }}" aria-hidden="true">
+    <div class="modal-dialog">
+        <div class="modal-content">
+            <div class="modal-header">
+                <h5 class="modal-title" id="cancellationModalLabel{{ request.id }}">Cancellation Request Details</h5>
+                <button type="button" class="btn-close" data-bs-dismiss="modal" aria-label="Close"></button>
+            </div>
+            <div class="modal-body">
+                <p><strong>Patient:</strong> {{ request.patient.full_name }}</p>
+                <p><strong>Appointment Type:</strong> 
+                    <span class="type-badge type-{{ request.appointment_type }}">{{ request.appointment_type|title }}</span>
+                </p>
+                <p><strong>Appointment ID:</strong> {{ request.appointment_id }}</p>
+                <p><strong>Status:</strong> <span class="status-badge status-{{ request.status }}">{{ request.status|title }}</span></p>
+                {% if request.reason %}
+                <hr>
+                <p><strong>Reason:</strong></p>
+                <p>{{ request.reason }}</p>
+                {% else %}
+                <p class="text-muted">No reason provided</p>
+                {% endif %}
+                <p class="text-muted small mb-0">Requested on {{ request.created_at|date:"F d, Y g:i A" }}</p>
+            </div>
+            <div class="modal-footer">
+                <button type="button" class="btn btn-secondary" data-bs-dismiss="modal">Close</button>
+            </div>
+        </div>
+    </div>
+</div>
+{% endfor %}
+{% endblock %}
+

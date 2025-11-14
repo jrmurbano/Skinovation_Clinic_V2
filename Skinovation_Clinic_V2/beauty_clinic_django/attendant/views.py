@@ -155,8 +155,24 @@ def attendant_appointment_detail(request, appointment_id):
         messages.error(request, 'You can only view appointments assigned to you.')
         return redirect('attendant:appointments')
     
+    # Get feedback for this appointment
+    from appointments.models import Feedback
+    feedback = None
+    attendant_feedback = None
+    try:
+        feedback = Feedback.objects.get(appointment=appointment)
+        # Separate service/package/product feedback from attendant feedback
+        attendant_feedback = {
+            'rating': feedback.attendant_rating,
+            'comment': feedback.comment if feedback.attendant_rating else None
+        }
+    except Feedback.DoesNotExist:
+        pass
+    
     context = {
         'appointment': appointment,
+        'feedback': feedback,
+        'attendant_feedback': attendant_feedback,
     }
     
     return render(request, 'attendant/appointment_detail.html', context)
@@ -286,7 +302,7 @@ def attendant_patient_profile(request, patient_id):
 @login_required
 @user_passes_test(is_attendant)
 def attendant_history(request):
-    """Attendant view own history of treatments/services done"""
+    """Attendant view own history of completed appointments only"""
     # Get the Attendant object associated with this user
     try:
         attendant_obj = Attendant.objects.get(
@@ -297,7 +313,7 @@ def attendant_history(request):
         messages.error(request, 'No attendant profile found. Please contact staff.')
         return redirect('attendant:dashboard')
     
-    # Get completed appointments assigned to this attendant
+    # Get only completed appointments assigned to this attendant
     completed_appointments = Appointment.objects.filter(
         attendant=attendant_obj,
         status='completed'
@@ -485,7 +501,9 @@ def attendant_mark_notification_read(request, notification_id):
 def get_notifications_api(request):
     """API endpoint to get notifications for attendant"""
     try:
+        # Filter notifications for the current attendant user
         notifications = Notification.objects.filter(
+            patient=request.user,
             type__in=['appointment', 'confirmation', 'cancellation']
         ).order_by('-created_at')[:20]
         

@@ -139,3 +139,60 @@ def send_package_sms(package_booking):
             'error': str(e),
             'message': 'Failed to send package SMS'
         }
+
+def send_attendant_assignment_sms(appointment):
+    """
+    Send SMS to attendant when an appointment is assigned to them
+    
+    Args:
+        appointment: Appointment object
+    
+    Returns:
+        dict: SMS sending result
+    """
+    try:
+        # Get attendant user
+        from accounts.models import User
+        attendant_user = User.objects.filter(
+            user_type='attendant',
+            first_name=appointment.attendant.first_name,
+            last_name=appointment.attendant.last_name,
+            is_active=True
+        ).first()
+        
+        if not attendant_user:
+            return {
+                'success': False,
+                'message': 'Attendant user not found'
+            }
+        
+        # Get attendant profile for phone number
+        profile = getattr(attendant_user, 'attendant_profile', None)
+        if not profile or not profile.phone:
+            return {
+                'success': False,
+                'message': 'Attendant phone number not available'
+            }
+        
+        # Format message with attendant name
+        attendant_name = attendant_user.get_full_name() or f"{attendant_user.first_name} {attendant_user.last_name}"
+        service_name = appointment.get_service_name()
+        message = (
+            f"Hi {attendant_name}, you have been assigned a new appointment. "
+            f"Patient: {appointment.patient.get_full_name()}, "
+            f"Service: {service_name}, "
+            f"Date: {appointment.appointment_date.strftime('%B %d, %Y')}, "
+            f"Time: {appointment.appointment_time.strftime('%I:%M %p')}. "
+            f"Please check your attendant portal for details."
+        )
+        
+        result = send_sms_notification(profile.phone, message, user=attendant_user)
+        return result
+        
+    except Exception as e:
+        logger.error(f"Error sending attendant assignment SMS: {str(e)}")
+        return {
+            'success': False,
+            'error': str(e),
+            'message': 'Failed to send attendant assignment SMS'
+        }

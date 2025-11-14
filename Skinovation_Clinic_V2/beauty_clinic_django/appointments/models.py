@@ -326,3 +326,34 @@ class SMSHistory(models.Model):
             return f"{minutes} minute{'s' if minutes > 1 else ''} ago"
         else:
             return "Just now"
+
+class HistoryLog(models.Model):
+    """Model to track history of add/edit/archive actions for services, products, and packages"""
+    ACTION_CHOICES = [
+        ('add', 'Add'),
+        ('edit', 'Edit'),
+        ('archive', 'Archive'),
+    ]
+    
+    ITEM_TYPE_CHOICES = [
+        ('service', 'Service'),
+        ('product', 'Product'),
+        ('package', 'Package'),
+    ]
+    
+    action_type = models.CharField(max_length=10, choices=ACTION_CHOICES)
+    item_type = models.CharField(max_length=10, choices=ITEM_TYPE_CHOICES)
+    item_id = models.IntegerField()
+    item_name = models.CharField(max_length=255)
+    performed_by = models.ForeignKey(settings.AUTH_USER_MODEL, on_delete=models.SET_NULL, null=True, related_name='history_logs')
+    timestamp = models.DateTimeField(auto_now_add=True)
+    details = models.JSONField(default=dict, blank=True, help_text="Additional details about the action")
+    
+    class Meta:
+        db_table = 'history_logs'
+        ordering = ['-timestamp']
+        verbose_name = 'History Log'
+        verbose_name_plural = 'History Logs'
+    
+    def __str__(self):
+        return f"{self.get_action_type_display()} {self.get_item_type_display()} - {self.item_name} by {self.performed_by.get_full_name() if self.performed_by else 'System'}"

@@ -1,0 +1,20 @@
+<div class="notification-wrapper">
+    <div class="dropdown">
+        <button class="btn btn-link text-decoration-none position-relative" type="button" id="adminNotificationDropdown" data-bs-toggle="dropdown" aria-expanded="false" style="border: none; padding: 0.5rem;">
+            <i class="fas fa-bell text-muted" style="font-size: 18px;"></i>
+            <span class="position-absolute top-0 start-100 translate-middle badge rounded-pill bg-danger" style="font-size: 10px;" id="adminNotificationCount">0</span>
+        </button>
+        <ul class="dropdown-menu dropdown-menu-end" aria-labelledby="adminNotificationDropdown" style="max-width: 350px; max-height: 400px; overflow-y: auto;">
+            <li><h6 class="dropdown-header">Notifications</h6></li>
+            <li><hr class="dropdown-divider"></li>
+            <li id="adminNotificationsList">
+                <div class="text-center p-3 text-muted">
+                    <i class="fas fa-spinner fa-spin"></i> Loading...
+                </div>
+            </li>
+            <li><hr class="dropdown-divider"></li>
+            <li><a class="dropdown-item text-center" href="{% url 'appointments:admin_notifications' %}">View All Notifications</a></li>
+        </ul>
+    </div>
+</div>
+

@@ -65,6 +65,7 @@ urlpatterns = [
     path('admin/inventory/', admin_views.admin_inventory, name='admin_inventory'),
     path('admin/inventory/update/<int:product_id>/', admin_views.admin_update_stock, name='admin_update_stock'),
     path('admin/feedback/', admin_views.admin_view_feedback, name='admin_view_feedback'),
+    path('admin/history-log/', admin_views.admin_history_log, name='admin_history_log'),
     
     # Admin SMS Testing URLs
     path('admin/sms-test/', admin_sms_views.admin_sms_test, name='admin_sms_test'),

@@ -132,6 +132,7 @@
         <i class="fas fa-calendar-check"></i>
         Manage Appointments and Products
     </h1>
+    {% include 'appointments/includes/admin_notification_icon.html' %}
 </div>
 
 <!-- Statistics Cards -->
@@ -278,23 +279,9 @@
                             </span>
                         </td>
                         <td>
-                            {% if appointment.status == 'pending' %}
-                                <a href="{% url 'appointments:admin_confirm' appointment.id %}" class="btn-action btn-confirm" title="Confirm">
-                                    <i class="fas fa-check"></i> Confirm
-                                </a>
-                                <a href="{% url 'appointments:admin_cancel' appointment.id %}" class="btn-action btn-cancel" title="Cancel">
-                                    <i class="fas fa-times"></i> Cancel
-                                </a>
-                            {% elif appointment.status == 'confirmed' %}
-                                <a href="{% url 'appointments:admin_complete' appointment.id %}" class="btn-action btn-complete" title="Complete">
-                                    <i class="fas fa-check"></i> Complete
-                                </a>
-                                <a href="{% url 'appointments:admin_cancel' appointment.id %}" class="btn-action btn-cancel" title="Cancel">
-                                    <i class="fas fa-times"></i> Cancel
-                                </a>
-                            {% else %}
-                                -
-                            {% endif %}
+                            <button type="button" class="btn btn-sm btn-primary" data-bs-toggle="modal" data-bs-target="#appointmentModal{{ appointment.id }}" title="View Details">
+                                <i class="fas fa-eye"></i> View
+                            </button>
                         </td>
                     </tr>
                     {% endfor %}
@@ -317,4 +304,74 @@
         </a>
     </div>
 </div>
+
+<!-- Appointment Detail Modals -->
+{% for appointment in appointments %}
+<div class="modal fade" id="appointmentModal{{ appointment.id }}" tabindex="-1" aria-labelledby="appointmentModalLabel{{ appointment.id }}" aria-hidden="true">
+    <div class="modal-dialog modal-lg">
+        <div class="modal-content">
+            <div class="modal-header">
+                <h5 class="modal-title" id="appointmentModalLabel{{ appointment.id }}">
+                    <i class="fas fa-calendar-check me-2"></i>Appointment Details
+                </h5>
+                <button type="button" class="btn-close" data-bs-dismiss="modal" aria-label="Close"></button>
+            </div>
+            <div class="modal-body">
+                <div class="row mb-3">
+                    <div class="col-md-6">
+                        <h6 class="text-muted">Patient Information</h6>
+                        <p><strong>Name:</strong> {{ appointment.patient.full_name }}</p>
+                        <p><strong>Phone:</strong> {{ appointment.patient.phone|default:"N/A" }}</p>
+                        <p><strong>Email:</strong> {{ appointment.patient.email|default:"N/A" }}</p>
+                    </div>
+                    <div class="col-md-6">
+                        <h6 class="text-muted">Appointment Information</h6>
+                        <p><strong>Type:</strong> 
+                            {% if appointment.service %}Service{% elif appointment.package %}Package{% elif appointment.product %}Product{% endif %}
+                        </p>
+                        <p><strong>Service/Package/Product:</strong> {{ appointment.get_service_name }}</p>
+                        <p><strong>Date:</strong> {{ appointment.appointment_date|date:"F d, Y" }}</p>
+                        <p><strong>Time:</strong> {{ appointment.appointment_time|time:"g:i A" }}</p>
+                        <p><strong>Status:</strong> 
+                            <span class="status-badge status-{{ appointment.status }}">{{ appointment.status|title }}</span>
+                        </p>
+                        <p><strong>Transaction ID:</strong> {{ appointment.transaction_id|default:"N/A" }}</p>
+                    </div>
+                </div>
+                
+                <hr>
+                
+                <h6 class="text-muted mb-3">Patient Feedback</h6>
+                {% with feedback=appointment.feedback.first %}
+                    {% if feedback %}
+                        <div class="card">
+                            <div class="card-body">
+                                <p><strong>Service/Package/Product Rating:</strong> 
+                                    {% for i in "12345"|make_list %}
+                                        {% if forloop.counter <= feedback.rating %}
+                                            <i class="fas fa-star text-warning"></i>
+                                        {% else %}
+                                            <i class="far fa-star text-warning"></i>
+                                        {% endif %}
+                                    {% endfor %}
+                                    ({{ feedback.rating }}/5)
+                                </p>
+                                {% if feedback.comment %}
+                                <p><strong>Comment:</strong> {{ feedback.comment }}</p>
+                                {% endif %}
+                                <p class="text-muted small mb-0">Submitted on {{ feedback.created_at|date:"F d, Y g:i A" }}</p>
+                            </div>
+                        </div>
+                    {% else %}
+                        <p class="text-muted">No feedback submitted yet.</p>
+                    {% endif %}
+                {% endwith %}
+            </div>
+            <div class="modal-footer">
+                <button type="button" class="btn btn-secondary" data-bs-dismiss="modal">Close</button>
+            </div>
+        </div>
+    </div>
+</div>
+{% endfor %}
 {% endblock %}

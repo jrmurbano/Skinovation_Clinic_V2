@@ -11,7 +11,7 @@ from accounts.models import User, Attendant, AttendantProfile
 from services.models import Service
 from products.models import Product
 from packages.models import Package
-from services.utils import send_appointment_sms
+from services.utils import send_appointment_sms, send_attendant_assignment_sms
 import json
 
 
@@ -187,20 +187,79 @@ def book_service(request, service_id):
                     patient=None  # Owner notification
                 )
             
-            # Send SMS confirmation
+            # Send SMS confirmation to patient
             sms_result = send_appointment_sms(appointment, 'confirmation')
             if sms_result['success']:
                 messages.success(request, f'Appointment {"booked" if initial_status == "pending" else "confirmed automatically"}! SMS confirmation sent. Transaction ID: {transaction_id}')
             else:
                 messages.success(request, f'Appointment {"booked" if initial_status == "pending" else "confirmed automatically"}! (SMS notification failed) Transaction ID: {transaction_id}')
+            
+            # Send SMS and create in-app notification for attendant
+            try:
+                attendant_user = User.objects.filter(
+                    user_type='attendant',
+                    first_name=attendant.first_name,
+                    last_name=attendant.last_name,
+                    is_active=True
+                ).first()
+                
+                if attendant_user:
+                    # Send SMS to attendant
+                    send_attendant_assignment_sms(appointment)
+                    
+                    # Create in-app notification for attendant
+                    Notification.objects.create(
+                        type='appointment',
+                        appointment_id=appointment.id,
+                        title='New Appointment Assigned',
+                        message=f'You have been assigned a new appointment: {appointment.patient.get_full_name()} - {appointment.get_service_name()} on {appointment.appointment_date} at {appointment.appointment_time}.',
+                        patient=attendant_user  # Store attendant user in patient field for notification
+                    )
+            except Exception as e:
+                # Log error but don't fail the booking
+                pass
+            
             return redirect('appointments:my_appointments')
         else:
             messages.error(request, 'Please fill in all required fields.')
     
-    # Get all attendants (availability will be checked on booking)
+    # Get available attendants based on selected date/time (if provided)
+    selected_date = request.GET.get('date', '')
+    selected_time = request.GET.get('time', '')
+    available_attendants = Attendant.objects.all()
+    
+    if selected_date and selected_time:
+        try:
+            appointment_datetime = datetime.strptime(f"{selected_date} {selected_time}", "%Y-%m-%d %H:%M")
+            day_name = appointment_datetime.strftime('%A')
+            appointment_time_obj = datetime.strptime(selected_time, "%H:%M").time()
+            
+            # Filter attendants by availability
+            available_attendant_ids = []
+            for attendant in Attendant.objects.all():
+                try:
+                    user = User.objects.get(user_type='attendant', first_name=attendant.first_name, last_name=attendant.last_name, is_active=True)
+                    profile = getattr(user, 'attendant_profile', None)
+                    if profile:
+                        if day_name in profile.work_days and profile.start_time <= appointment_time_obj < profile.end_time:
+                            available_attendant_ids.append(attendant.id)
+                    else:
+                        # If no profile, include by default (backward compatibility)
+                        available_attendant_ids.append(attendant.id)
+                except (User.DoesNotExist, User.MultipleObjectsReturned):
+                    # If no user found, include by default (backward compatibility)
+                    available_attendant_ids.append(attendant.id)
+            
+            available_attendants = Attendant.objects.filter(id__in=available_attendant_ids)
+        except (ValueError, TypeError):
+            # If date/time parsing fails, show all attendants
+            pass
+    
     context = {
         'service': service,
-        'attendants': Attendant.objects.all(),
+        'attendants': available_attendants,
+        'selected_date': selected_date,
+        'selected_time': selected_time,
     }
     
     return render(request, 'appointments/book_service.html', context)
@@ -422,9 +481,43 @@ def book_package(request, package_id):
         else:
             messages.error(request, 'Please fill in all required fields.')
     
+    # Get available attendants based on selected date/time (if provided)
+    selected_date = request.GET.get('date', '')
+    selected_time = request.GET.get('time', '')
+    available_attendants = Attendant.objects.all()
+    
+    if selected_date and selected_time:
+        try:
+            appointment_datetime = datetime.strptime(f"{selected_date} {selected_time}", "%Y-%m-%d %H:%M")
+            day_name = appointment_datetime.strftime('%A')
+            appointment_time_obj = datetime.strptime(selected_time, "%H:%M").time()
+            
+            # Filter attendants by availability
+            available_attendant_ids = []
+            for attendant in Attendant.objects.all():
+                try:
+                    user = User.objects.get(user_type='attendant', first_name=attendant.first_name, last_name=attendant.last_name, is_active=True)
+                    profile = getattr(user, 'attendant_profile', None)
+                    if profile:
+                        if day_name in profile.work_days and profile.start_time <= appointment_time_obj < profile.end_time:
+                            available_attendant_ids.append(attendant.id)
+                    else:
+                        # If no profile, include by default (backward compatibility)
+                        available_attendant_ids.append(attendant.id)
+                except (User.DoesNotExist, User.MultipleObjectsReturned):
+                    # If no user found, include by default (backward compatibility)
+                    available_attendant_ids.append(attendant.id)
+            
+            available_attendants = Attendant.objects.filter(id__in=available_attendant_ids)
+        except (ValueError, TypeError):
+            # If date/time parsing fails, show all attendants
+            pass
+    
     context = {
         'package': package,
-        'attendants': Attendant.objects.all(),
+        'attendants': available_attendants,
+        'selected_date': selected_date,
+        'selected_time': selected_time,
     }
     
     return render(request, 'appointments/book_package.html', context)
