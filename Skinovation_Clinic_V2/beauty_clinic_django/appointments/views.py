@@ -632,8 +632,22 @@ def handle_unavailable_attendant(request, appointment_id):
     if request.method == 'POST':
         choice = request.POST.get('choice')
         
+        # Record patient's choice
+        unavailability_request.patient_choice = choice
+        unavailability_request.status = 'resolved'
+        unavailability_request.resolved_at = timezone.now()
+        unavailability_request.save()
+        
+        # Create notification for owner
+        Notification.objects.create(
+            type='system',
+            title='Patient Responded to Unavailability',
+            message=f'Patient {appointment.patient.get_full_name()} chose: {dict(unavailability_request._meta.get_field("patient_choice").choices).get(choice, choice)} for appointment on {appointment.appointment_date}.'
+        )
+        
         if choice == 'choose_another':
             # Redirect to appointment booking with service/package/product to choose another attendant
+            messages.info(request, 'Please select another available attendant for the same date and time.')
             if appointment.service:
                 return redirect('appointments:book_service', service_id=appointment.service.id)
             elif appointment.package:
@@ -646,10 +660,12 @@ def handle_unavailable_attendant(request, appointment_id):
         
         elif choice == 'reschedule_same':
             # Redirect to reschedule request
+            messages.info(request, 'Please select a new date and time with the same attendant.')
             return redirect('appointments:request_reschedule', appointment_id=appointment_id)
         
         elif choice == 'cancel':
             # Redirect to cancellation request
+            messages.info(request, 'Please confirm cancellation of your appointment.')
             return redirect('appointments:request_cancellation', appointment_id=appointment_id)
         
         else:

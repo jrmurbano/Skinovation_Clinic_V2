@@ -88,6 +88,10 @@ def analytics_dashboard(request):
         'recent_appointments': recent_appointments,
     }
     
+    # For staff (admin) users, use the staff analytics layout with sidebar
+    if request.user.is_authenticated and getattr(request.user, 'user_type', '') == 'admin':
+        return render(request, 'analytics/admin_dashboard.html', context)
+
     return render(request, 'analytics/dashboard.html', context)
 
 

@@ -7,8 +7,8 @@ from accounts.models import User
 from appointments.models import SMSHistory
 
 def is_owner(user):
-    """Check if user is owner"""
-    return user.is_authenticated and user.user_type == 'owner'
+    """Check if user is owner or admin (staff)"""
+    return user.is_authenticated and user.user_type in ('owner', 'admin')
 
 @login_required
 @user_passes_test(is_owner)

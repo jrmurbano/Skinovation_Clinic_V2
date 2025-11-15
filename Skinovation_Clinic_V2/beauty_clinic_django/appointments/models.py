@@ -4,7 +4,19 @@ from django.utils import timezone
 from django.core.validators import MinValueValidator, MaxValueValidator
 
 class Appointment(models.Model):
-    """Appointment model"""
+    """
+    Appointment model for managing bookings and scheduling.
+    
+    STATUS FLOW DOCUMENTATION:
+    - Appointments are typically created in 'confirmed' status when attendant is available
+    - Statuses 'pending', 'confirmed', 'cancelled' are PRIMARILY used when:
+      1. Attendant requests sick leave
+      2. Owner approves the leave request
+      3. System creates AttendantUnavailabilityRequest for affected appointments
+      4. Patient chooses one of 3 options (reschedule, choose another, cancel)
+    - 'completed' status is set when attendant marks appointment as finished
+    - See AttendantLeaveRequest and AttendantUnavailabilityRequest models for leave workflow
+    """
     STATUS_CHOICES = [
         ('pending', 'Pending'),
         ('confirmed', 'Confirmed'),

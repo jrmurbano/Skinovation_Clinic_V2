@@ -1,5 +1,6 @@
 {% extends 'owner/base.html' %}
 {% load static %}
+{% load appointment_filters %}
 
 {% block title %}Manage Attendants - Owner Panel{% endblock %}
 
@@ -193,7 +194,8 @@
                     <div class="mb-3">
                         <label class="form-label fw-bold">Work Days:</label>
                         <div class="row">
-                            {% for day in 'Monday,Tuesday,Wednesday,Thursday,Friday,Saturday,Sunday'|split:',' %}
+                            {% get_weekdays as weekdays %}
+                            {% for day in weekdays %}
                             <div class="col-md-3 mb-2">
                                 <div class="form-check">
                                     <input class="form-check-input" type="checkbox" name="work_days" value="{{ day }}" id="day{{ forloop.counter }}_{{ attendant_user.id }}"

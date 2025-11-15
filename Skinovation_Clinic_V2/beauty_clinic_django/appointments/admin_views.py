@@ -668,8 +668,16 @@ def admin_manage_attendant_profile(request, user_id):
 @user_passes_test(is_admin)
 def admin_reset_attendant_password(request, user_id):
     """Reset attendant account password and provide a temporary one"""
+    from django.contrib.auth.models import User as DjangoUser
+    import secrets
+    import string
+    
     user = get_object_or_404(User, id=user_id, user_type='attendant')
-    temp_password = User.objects.make_random_password(length=10)
+    
+    # Generate a random 10-character password
+    chars = string.ascii_letters + string.digits
+    temp_password = ''.join(secrets.choice(chars) for _ in range(10))
+    
     user.set_password(temp_password)
     user.save()
     
@@ -1108,3 +1116,255 @@ def admin_update_stock(request, product_id):
         return redirect('appointments:admin_inventory')
     
     return redirect('appointments:admin_inventory')
+
+
+def log_admin_history(item_type, item_name, action, performed_by, details='', related_id=None):
+    """Helper function to log history"""
+    from services.models import HistoryLog
+    
+    HistoryLog.objects.create(
+        type=item_type,
+        name=item_name,
+        action=action,
+        performed_by=performed_by,
+        details=details,
+        related_id=related_id
+    )
+
+
+@login_required
+@user_passes_test(is_admin)
+def admin_manage_services(request):
+    """Staff manage services - same interface as owner"""
+    from services.models import Service, ServiceCategory
+    from django.core.paginator import Paginator
+    
+    services = Service.objects.filter(archived=False).order_by('service_name')
+    
+    if request.method == 'POST':
+        action = request.POST.get('action')
+        if action == 'add':
+            service_name = request.POST.get('service_name')
+            description = request.POST.get('description')
+            price = request.POST.get('price')
+            duration = request.POST.get('duration')
+            category_id = request.POST.get('category')
+            
+            if service_name and price and duration:
+                try:
+                    service = Service.objects.create(
+                        service_name=service_name,
+                        description=description,
+                        price=price,
+                        duration=duration,
+                        category_id=category_id
+                    )
+                    log_admin_history('Service', service_name, 'Added', request.user.get_full_name() or request.user.username, 
+                               f'Price: {price}, Duration: {duration}', service.id)
+                    messages.success(request, 'Service added successfully!')
+                except Exception as e:
+                    messages.error(request, f'Error adding service: {str(e)}')
+            else:
+                messages.error(request, 'Please fill in all required fields.')
+        
+        elif action == 'edit':
+            service_id = request.POST.get('service_id')
+            service = get_object_or_404(Service, id=service_id)
+            old_name = service.service_name
+            service.service_name = request.POST.get('service_name', service.service_name)
+            service.description = request.POST.get('description', service.description)
+            price = request.POST.get('price')
+            if price:
+                service.price = price
+            duration = request.POST.get('duration')
+            if duration:
+                service.duration = duration
+            category_id = request.POST.get('category')
+            if category_id:
+                service.category_id = category_id
+            service.save()
+            log_admin_history('Service', service.service_name, 'Edited', request.user.get_full_name() or request.user.username,
+                       f'Updated: {old_name} -> {service.service_name}', service.id)
+            messages.success(request, 'Service updated successfully!')
+        
+        elif action == 'delete' or action == 'archive':
+            service_id = request.POST.get('service_id')
+            service = get_object_or_404(Service, id=service_id)
+            service_name = service.service_name
+            service.archived = True
+            service.save()
+            log_admin_history('Service', service_name, 'Deleted', request.user.get_full_name() or request.user.username,
+                       f'Service archived', service.id)
+            messages.success(request, 'Service archived successfully!')
+        
+        return redirect('appointments:admin_manage_services')
+    
+    # Add pagination
+    paginator = Paginator(services, 15)
+    page_number = request.GET.get('page')
+    page_obj = paginator.get_page(page_number)
+    
+    categories = ServiceCategory.objects.all()
+    context = {
+        'services': page_obj,
+        'page_obj': page_obj,
+        'categories': categories,
+    }
+    return render(request, 'appointments/admin_manage_services.html', context)
+
+
+@login_required
+@user_passes_test(is_admin)
+def admin_manage_packages(request):
+    """Staff manage packages - same interface as owner"""
+    from packages.models import Package
+    from django.core.paginator import Paginator
+    
+    packages = Package.objects.filter(archived=False).order_by('package_name')
+    
+    if request.method == 'POST':
+        action = request.POST.get('action')
+        if action == 'add':
+            package_name = request.POST.get('package_name')
+            description = request.POST.get('description')
+            price = request.POST.get('price')
+            sessions = request.POST.get('sessions')
+            duration_days = request.POST.get('duration_days')
+            grace_period_days = request.POST.get('grace_period_days')
+            
+            if package_name and price and sessions:
+                try:
+                    package = Package.objects.create(
+                        package_name=package_name,
+                        description=description,
+                        price=price,
+                        sessions=sessions,
+                        duration_days=duration_days or 0,
+                        grace_period_days=grace_period_days or 0
+                    )
+                    log_admin_history('Package', package_name, 'Added', request.user.get_full_name() or request.user.username,
+                               f'Price: {price}, Sessions: {sessions}', package.id)
+                    messages.success(request, 'Package added successfully!')
+                except Exception as e:
+                    messages.error(request, f'Error adding package: {str(e)}')
+            else:
+                messages.error(request, 'Please fill in all required fields.')
+        
+        elif action == 'edit':
+            package_id = request.POST.get('package_id')
+            package = get_object_or_404(Package, id=package_id)
+            old_name = package.package_name
+            package.package_name = request.POST.get('package_name', package.package_name)
+            package.description = request.POST.get('description', package.description)
+            price = request.POST.get('price')
+            if price:
+                package.price = price
+            sessions = request.POST.get('sessions')
+            if sessions:
+                package.sessions = sessions
+            duration_days = request.POST.get('duration_days')
+            if duration_days:
+                package.duration_days = duration_days
+            grace_period_days = request.POST.get('grace_period_days')
+            if grace_period_days:
+                package.grace_period_days = grace_period_days
+            package.save()
+            log_admin_history('Package', package.package_name, 'Edited', request.user.get_full_name() or request.user.username,
+                       f'Updated: {old_name} -> {package.package_name}', package.id)
+            messages.success(request, 'Package updated successfully!')
+        
+        elif action == 'delete' or action == 'archive':
+            package_id = request.POST.get('package_id')
+            package = get_object_or_404(Package, id=package_id)
+            package_name = package.package_name
+            package.archived = True
+            package.save()
+            log_admin_history('Package', package_name, 'Deleted', request.user.get_full_name() or request.user.username,
+                       f'Package archived', package.id)
+            messages.success(request, 'Package archived successfully!')
+        
+        return redirect('appointments:admin_manage_packages')
+    
+    # Add pagination
+    paginator = Paginator(packages, 15)
+    page_number = request.GET.get('page')
+    page_obj = paginator.get_page(page_number)
+    
+    context = {
+        'packages': page_obj,
+        'page_obj': page_obj,
+    }
+    return render(request, 'appointments/admin_manage_packages.html', context)
+
+
+@login_required
+@user_passes_test(is_admin)
+def admin_manage_products(request):
+    """Staff manage products - same interface as owner"""
+    from django.core.paginator import Paginator
+    
+    products = Product.objects.filter(archived=False).order_by('product_name')
+    
+    if request.method == 'POST':
+        action = request.POST.get('action')
+        if action == 'add':
+            product_name = request.POST.get('product_name')
+            description = request.POST.get('description')
+            price = request.POST.get('price')
+            stock = request.POST.get('stock') or request.POST.get('stock_quantity')
+            
+            if product_name and price:
+                try:
+                    Product.objects.create(
+                        product_name=product_name,
+                        description=description,
+                        price=price,
+                        stock=stock or 0
+                    )
+                    log_admin_history('Product', product_name, 'Added', request.user.get_full_name() or request.user.username,
+                               f'Price: {price}, Stock: {stock or 0}', None)
+                    messages.success(request, 'Product added successfully!')
+                except Exception as e:
+                    messages.error(request, f'Error adding product: {str(e)}')
+            else:
+                messages.error(request, 'Please fill in all required fields.')
+        
+        elif action == 'edit':
+            product_id = request.POST.get('product_id')
+            product = get_object_or_404(Product, id=product_id)
+            old_name = product.product_name
+            product.product_name = request.POST.get('product_name', product.product_name)
+            product.description = request.POST.get('description', product.description)
+            price = request.POST.get('price')
+            if price:
+                product.price = price
+            stock = request.POST.get('stock') or request.POST.get('stock_quantity')
+            if stock is not None:
+                product.stock = stock
+            product.save()
+            log_admin_history('Product', product.product_name, 'Edited', request.user.get_full_name() or request.user.username,
+                       f'Updated: {old_name} -> {product.product_name}', product.id)
+            messages.success(request, 'Product updated successfully!')
+        
+        elif action == 'delete' or action == 'archive':
+            product_id = request.POST.get('product_id')
+            product = get_object_or_404(Product, id=product_id)
+            product_name = product.product_name
+            product.archived = True
+            product.save()
+            log_admin_history('Product', product_name, 'Deleted', request.user.get_full_name() or request.user.username,
+                       f'Product archived', product.id)
+            messages.success(request, 'Product archived successfully!')
+        
+        return redirect('appointments:admin_manage_products')
+    
+    # Add pagination
+    paginator = Paginator(products, 15)
+    page_number = request.GET.get('page')
+    page_obj = paginator.get_page(page_number)
+    
+    context = {
+        'products': page_obj,
+        'page_obj': page_obj,
+    }
+    return render(request, 'appointments/admin_manage_products.html', context)

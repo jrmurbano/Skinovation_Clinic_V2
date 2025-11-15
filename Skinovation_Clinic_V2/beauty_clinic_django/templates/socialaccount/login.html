@@ -263,11 +263,6 @@
                         <h1>Sign In Via Google</h1>
                     </div>
                     <div class="card-body">
-                        <div class="menu-links">
-                            <a href="{% url 'account_login' %}">Sign In</a>
-                            <a href="{% url 'account_signup' %}">Sign Up</a>
-                        </div>
-                        
                         <p class="description-text">
                             You are about to sign in using a third-party account from Google.
                         </p>
@@ -275,7 +270,8 @@
                         {% if process == "connect" %}
                             <form method="post" action="{% url 'socialaccount_connections' %}">
                         {% else %}
-                            <form method="post" action="{% url 'socialaccount_login' %}">
+                            <!-- Form for confirming social login -->
+                            <form method="post">
                         {% endif %}
                             {% csrf_token %}
                             {% if redirect_field_value %}

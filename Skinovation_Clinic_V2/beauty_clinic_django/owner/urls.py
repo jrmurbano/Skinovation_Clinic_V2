@@ -1,6 +1,7 @@
 from django.urls import path
 from . import views
 from . import sms_views
+from . import leave_views
 
 app_name = 'owner'
 
@@ -41,4 +42,10 @@ urlpatterns = [
     path('manage/attendants/profile/<int:user_id>/', views.owner_manage_attendant_profile, name='manage_attendant_profile'),
     path('manage/attendants/add/', views.owner_add_attendant, name='add_attendant'),
     path('manage/attendants/delete/<int:attendant_id>/', views.owner_delete_attendant, name='delete_attendant'),
+    
+    # Leave Request Management
+    path('leave-requests/', leave_views.list_leave_requests, name='list_leave_requests'),
+    path('leave-requests/<int:leave_request_id>/', leave_views.leave_request_detail, name='leave_request_detail'),
+    path('leave-requests/<int:leave_request_id>/approve/', leave_views.approve_leave_request, name='approve_leave_request'),
+    path('leave-requests/<int:leave_request_id>/reject/', leave_views.reject_leave_request, name='reject_leave_request'),
 ]
